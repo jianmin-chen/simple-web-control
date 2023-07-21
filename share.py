@@ -56,7 +56,6 @@ def run_motors_timed(mav_connection, seconds: int, motor_settings: list) -> None
     step = 0
     while step < seconds:
         for i in range(len(motor_settings)):
-            print(step)
             test_motor(
                 mav_connection=mav_connection, motor_id=i, power=motor_settings[i]
             )
@@ -83,13 +82,14 @@ if __name__ == "__main__":
 
     # Open TCP socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print("Socket created")
 
     # Start listening on port
-    port = 5000
-    s.bind("0.0.0.0", port)
-    backlog = 2
+    port = 5001
+    s.bind(("0.0.0.0", port))
+    backlog = 10
     s.listen(backlog)
+    print("Socket created")
+
     connection, address = s.accept()
     while True:
         data = connection.recv(1024).decode("ascii")
@@ -97,6 +97,7 @@ if __name__ == "__main__":
             data = [float(arg) for arg in data.split(" ")]
             if len(data) != 7:
                 raise Exception("Not enough arguments")
+            print("Running with arguments: ", data)
             run_motors_timed(
                 mav_connection=mav_connection, seconds=data[0], motor_settings=data[1:]
             )
@@ -104,5 +105,6 @@ if __name__ == "__main__":
             # An error happened
             print("Error moving AUV")
             break
+
     disarm_rov(mav_connection)
     s.close()
