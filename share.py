@@ -1,7 +1,6 @@
-import socket
 from motor_test import test_motor
-import time
 from pymavlink import mavutil
+import socket, sys, time
 
 
 def arm_rov(mav_connection):
@@ -28,7 +27,6 @@ def choreography(mav_connection):
     """
     Choreography
     """
-
     for i in range(6):
         # Do a flower of sorts
         run_motors_timed(
@@ -63,13 +61,21 @@ def run_motors_timed(mav_connection, seconds: int, motor_settings: list) -> None
         step += 0.2
 
 
+def forward(ip_list, data):
+    for ip in ip_list:
+        pass
+
+
+COOLDOWN = True
+
+
 if __name__ == "__main__":
     ####
     # Initialize ROV
     ####
     mav_connection = mavutil.mavlink_connection("udpin:0.0.0.0:14550")
     mav_connection.wait_heartbeat()
-    # Arm the ROV and wait for confirmation
+
     arm_rov(mav_connection)
 
     ####
@@ -84,7 +90,7 @@ if __name__ == "__main__":
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # Start listening on port
-    port = 5001
+    port = 5002
     s.bind(("0.0.0.0", port))
     backlog = 10
     s.listen(backlog)
@@ -101,10 +107,18 @@ if __name__ == "__main__":
             run_motors_timed(
                 mav_connection=mav_connection, seconds=data[0], motor_settings=data[1:]
             )
-        except:
+            print("Done running arguments")
+            if COOLDOWN:
+                print("Cooling down")
+                run_motors_timed(
+                    mav_connection, seconds=10, motor_settings=[0, 0, 0, 0, 0, 0]
+                )
+            print("Done sleeping")
+        except Exception as e:
             # An error happened
-            print("Error moving AUV")
+            print("Error moving AUV: ", e)
             break
 
-    disarm_rov(mav_connection)
+    print("Shutting down")
     s.close()
+    disarm_rov(mav_connection)
