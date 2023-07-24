@@ -70,27 +70,14 @@ COOLDOWN = True
 
 
 if __name__ == "__main__":
-    ####
-    # Initialize ROV
-    ####
     mav_connection = mavutil.mavlink_connection("udpin:0.0.0.0:14550")
     mav_connection.wait_heartbeat()
 
     arm_rov(mav_connection)
 
-    ####
-    # Run choreography
-    ####
-    # choreography(mav_connection)
-
-    # stop
-    # run_motors_timed(mav_connection, seconds=5, motor_settings=[0, 0, 0, 0, 0, 0])
-
-    # Open TCP socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    # Start listening on port
-    port = 5002
+    port = 5000
     s.bind(("0.0.0.0", port))
     backlog = 10
     s.listen(backlog)
@@ -98,25 +85,26 @@ if __name__ == "__main__":
 
     connection, address = s.accept()
     while True:
-        data = connection.recv(1024).decode("ascii")
         try:
+            data = connection.recv(1024, socket.MSG_DONTWAIT).decode("ascii")
             data = [float(arg) for arg in data.split(" ")]
             if len(data) != 7:
-                raise Exception("Not enough arguments")
-            print("Running with arguments: ", data)
+                raise Exception("Too much or too little arguments")
+            print("Running with arguments:", data)
             run_motors_timed(
-                mav_connection=mav_connection, seconds=data[0], motor_settings=data[1:]
+                mav_connection=mav_connection,
+                seconds=data[0],
+                motor_settings=data[1:],
             )
-            print("Done running arguments")
-            if COOLDOWN:
-                print("Cooling down")
-                run_motors_timed(
-                    mav_connection, seconds=10, motor_settings=[0, 0, 0, 0, 0, 0]
-                )
-            print("Done sleeping")
+        except BlockingIOError:
+            run_motors_timed(
+                mav_connection=mav_connection,
+                seconds=1,
+                motor_settings=[0, 0, 0, 0, 0, 0],
+            )
         except Exception as e:
-            # An error happened
-            print("Error moving AUV: ", e)
+            connection.close()
+            print("Error moving AUV:", e)
             break
 
     print("Shutting down")
